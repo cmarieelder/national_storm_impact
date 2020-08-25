@@ -1,0 +1,175 @@
+---
+title: "Impact of Severe Weather and Storms on Population Health and the Economy in the U.S."
+author: "Cynthia Elder"
+date: "8/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+list_of_packages <- c("dplyr", "tidyr", "ggplot2", "stringi")
+lapply(list_of_packages, library, character.only = TRUE)
+```
+
+## Synopsis
+
+In order to prepare for severe weather events and prioritize resources for different types of events, it is critical to determine which events cause the greatest harm to human population health and the economy within the United States. Utilizing data from the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database, this impact can be analyzed.
+
+The database includes estimates of fatalities and injuries for each storm event. These values can be totaled and plotted for each event to determine which storm events result in the most significant harm to population health.
+
+Similarly, the database also contains estimates of property and crop damage costs for each storm event, which can be totaled and plotted to determine the storm events with the greatest economical consequences.
+
+This document contains the data analysis described above.
+
+## Data Processing
+
+The data is loaded into R and processed for analysis as follows:
+
+### 1. Download the Data
+
+To download the data only when necessary, the repository is checked to determine whether the data file was downloaded previously and already exists. If not, the data file is downloaded from its URL. It is then read-in as a CSV and stored as the data frame `storm_data`.
+
+```{r load_data, cache=TRUE}
+datafile <- "repdata_data_StormData.csv.bz2"
+if (!file.exists(datafile)) {
+    data_url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+    download.file(url = data_url, destfile = datafile, method = "curl")
+}
+
+storm_data <- read.csv(datafile)
+```
+
+### 2. Transform the Data - for Population Health Analysis
+
+To determine the most harmful storm events with respect to population, the total fatalities and injuries need to be calculated for each storm type.
+
+First, the relevant rows for storm event type (EVTYPE), fatalities, and injuries are selected from the original data set. The data is then grouped by event type to separately calculate the sum of all fatalities and sum of all injuries across the incidences for each event type. The sums are respectively stored in the new columns `fatalities` and `injuries`. Another new column `ev_total` is created to store the total of these two for each event.
+
+The data frame is further transformed to gather the `fatalities` and `injuries` column values into a new column `total`, so that the counts can all be plotted as a single variable. The former column names are stored in a second new column `health_status` for labeling.
+
+To select the top 10 storm events with highest total fatalities and injuries, the data frame is arranged by descending order and the top 20 rows are sliced from the head (note: recall that each event data is stored in two row, one with fatality total and one with injury total; thus 10events * 2rows_each = 20 rows).
+
+Since the `EVTYPE` names are all upper-case, the strings are converted to Title Case for readability during plotting.
+
+```{r health_data_transform}
+human_health_df <- storm_data %>%
+    select(EVTYPE, FATALITIES, INJURIES) %>%
+    group_by(EVTYPE) %>%
+    summarize(.groups = "drop",
+              fatalities = sum(FATALITIES, na.rm = TRUE),
+              injuries = sum(INJURIES, na.rm = TRUE)) %>%
+    mutate(ev_total = fatalities + injuries) %>%
+    gather(health_status, total, -EVTYPE, -ev_total) %>%
+    arrange(desc(ev_total)) %>%
+    mutate(EVTYPE = stri_trans_totitle(EVTYPE)) %>%
+    slice_head(n=20)
+```
+
+### 3. Transform the Data - for Economical Impact Analysis
+
+A similar dataset reduction and transformation needs to be performed for the economical data. To analyze the impact of storm events on the economy, the total property and crop damage costs need to be calculated for each storm type.
+
+Similar to previously, the relevant rows are selected: `EVTYPE`, and all the columns between `PROPDMG` and `CROPDMGEXP`. The `EXP` post-fixed columns contain the magnitude of the data (`K`=thousands, `M`=millions, `B`=billions). Thus, all damage costs must be all be mutated back to their original numerical values for calculation. After conversion, the `EXP` columns can be dropped by selecting all columns except those.
+
+At this point, the data is grouped by event type in order to determine the sum of property damage and sum of crop damage per event type, which are respectively stored in the new columns `prop_damage` and `crop_damage`. Due to the magnitudes, both sums are divided to be in billions for readability during plotting. 
+
+The total damages for each event are added and stored in the new variable `ev_total`. The `prop_damage` and `crop_damage` values are then gathered into a single `total` column with their names stored within the new column `economy_damage`. As done prior, the data is sorted by descending `ev_total`. For this analysis, the top 40 rows are sliced to get the top 20 events with the highest total property and crop damage costs, to get a clearer picture of the data variation and trend.
+
+`EVTYPE` names are again converted from upper-case to Title Case for readability during plotting.
+
+```{r economy_data_transform}
+kil = 1000
+mil = 1000000
+bil = 1000000000
+
+economy_df <- storm_data %>%
+    select(EVTYPE, PROPDMG:CROPDMGEXP) %>%
+    mutate(PROPDMG = case_when(PROPDMGEXP == "K" ~ PROPDMG * kil,
+                               PROPDMGEXP == "M" ~ PROPDMG * mil,
+                               PROPDMGEXP == "B" ~ PROPDMG * bil,
+                               TRUE ~ PROPDMG)) %>%
+    mutate(CROPDMG = case_when(CROPDMGEXP == "K" ~ CROPDMG * kil,
+                                     CROPDMGEXP == "M" ~ CROPDMG * mil,
+                                     CROPDMGEXP == "B" ~ CROPDMG * bil,
+                                     TRUE ~ CROPDMG)) %>%
+    select(-PROPDMGEXP, -CROPDMGEXP) %>%
+    group_by(EVTYPE) %>%
+    summarize(.groups = "drop",
+              prop_damage = sum(PROPDMG, na.rm = TRUE) / bil,
+              crop_damage = sum(CROPDMG, na.rm = TRUE) / bil) %>%
+    mutate(ev_total = prop_damage + crop_damage) %>%
+    gather(economy_damage, total, -EVTYPE, -ev_total) %>%
+    arrange(desc(ev_total)) %>%
+    mutate(EVTYPE = stri_trans_totitle(EVTYPE)) %>%
+    slice_head(n=40)
+```
+
+## Results
+
+To analyze the data, each dataset is plotted to represent their respective total numbers for each storm event type.
+
+### 1. Plot the Population Health Impact Per Storm Event Type
+
+The transformed population health dataset is represented in the plot below. A single barplot was chosen to easily compare the total fatalities and injuries of each storm event side-by-side.
+
+```{r health_plot}
+health_plot <- ggplot(data = human_health_df,
+                      aes(x = reorder(EVTYPE, -ev_total), y = total,
+                          fill = health_status)) +
+    geom_col() +
+    labs(x = "Storm Event Type", y = "Population Impacted",
+         title = "Most Severe Storm Impacts on Population Health in the U.S.") +
+    theme(axis.title = element_text(face = "bold"),
+          axis.text.x = element_text(angle = 90, vjust = 0.2, hjust=1, size=9),
+          axis.text = element_text(colour = "black"),
+          plot.title = element_text(face = "bold", hjust = 0.5),
+          legend.title=element_blank()) +
+    scale_fill_discrete(breaks=c("fatalities", "injuries"),
+                        labels=c("Fatalities","Injuries")) +
+    geom_text(aes(y = ev_total, label = format(round(ev_total), big.mark = ",",
+                                               scientific = FALSE)),
+              size = 2.5, vjust = -0.25)
+print(health_plot)
+```
+
+**Figure 1: Barplot of the ten most harmful storm types to the U.S. population through fatalities and injuries.**
+
+After plotting the data, it is evident that tornadoes are by far the most dangerous storm event to the human population in the United States, at close to 97,000 people harmed, with a significant amount of fatalities. This magnitude over 11x the second leading severe weather type, Excessive Heat, at close to 8,500 incidences, though the number of fatalities still remains a fair amount higher than that of other storms. 
+
+Thunderstorm Wind, Floods, and Lightning are the next most harmful, each with a total population impact of over 6,000, most of them being non-fatal injuries. The storm events following these, Heat, Flash Flood, Ice Storm, and others, are all below half of those prior at close to 3,000 or less.
+
+
+### 2. Plot the Economical Consequences Per Storm Event Type
+
+The transformed economical consequences dataset, likewise, benefits from representation as a single barplot to easily compare the total property and crop damages of each storm event side-by-side.
+
+```{r economy_plot}
+economy_plot <- ggplot(data = economy_df,
+                       aes(x = reorder(EVTYPE, -ev_total), y = total,
+                           fill = economy_damage)) +
+    geom_col() +
+    labs(x = "Storm Event Type", y = "Cost of Damage (in billions of dollars)",
+         title = "Most Severe Storm Impacts on the Economy in the U.S.") +
+    theme(axis.title = element_text(face = "bold"),
+          axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1, size=9),
+          axis.text = element_text(colour = "black"),
+          plot.title = element_text(face = "bold", hjust = 0.5),
+          legend.title=element_blank()) +
+    scale_fill_discrete(breaks=c("prop_damage", "crop_damage"),
+                        labels=c("Property Damage", "Crop Damage")) +
+    geom_text(aes(y = ev_total, label = paste0(format(round(ev_total, 1),
+                                               scientific = FALSE, nsmall = 1),
+                                               "B")),
+              size = 2.4, vjust = -0.25)
+print(economy_plot)
+```
+
+**Figure 2: Barplot of the top twenty storms impacting the U.S. economy, through property and crop damage costs.**
+
+According to the plot, Floods are exceedingly the greatest storm inflicting economic consequences across the United States, causing over \$150 billion in damages to property and crops, with most of those damages being to property. The second leading storm type is Hurricanes/Typhoons at about half of the former, resulting in about $72 billion in damages, again, mostly to property.
+
+The third and fourth impactful storms are Tornados and Storm Surges, slightly less at \$57 billion and $43. billion respectively. After these, is a steep drop to about \$19 billion due to Hail damages.
+
+The storm types after appear to follow a logarithmic trend for damage costs. All severe weather notably mostly results in property damage, except Drought, which is almost entirely crop damage of its $15 billion total. River Floods and Ice Storms also cause significantly more crop damage than other storms, with about half of the damage costs for each being to crop damages.
+
+
