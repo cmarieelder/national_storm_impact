@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/652292/1976a42b9e49450da02430197590ef86
+bundleId: https://api.rpubs.com/api/v1/document/652292/1976a42b9e49450da02430197590ef86
+url: http://rpubs.com/cmarieelder/652292
+when: 1598592882.50108

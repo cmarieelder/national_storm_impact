@@ -118,7 +118,8 @@ health_plot <- ggplot(data = human_health_df,
                           fill = health_status)) +
     geom_col() +
     labs(x = "Storm Event Type", y = "Population Impacted",
-         title = "Most Severe Storm Impacts on Population Health in the U.S.") +
+         title = "Most Severe Storm Impacts on Population Health in the U.S.",
+         caption = "Figure 1: Top 10 most harmful storm types to the U.S. population health, through fatalities and injuries.") +
     theme(axis.title = element_text(face = "bold"),
           axis.text.x = element_text(angle = 90, vjust = 0.2, hjust=1, size=9),
           axis.text = element_text(colour = "black"),
@@ -132,7 +133,6 @@ health_plot <- ggplot(data = human_health_df,
 print(health_plot)
 ```
 
-**Figure 1: Barplot of the ten most harmful storm types to the U.S. population through fatalities and injuries.**
 
 After plotting the data, it is evident that tornadoes are by far the most dangerous storm event to the human population in the United States, at close to 97,000 people harmed, with a significant amount of fatalities. This magnitude over 11x the second leading severe weather type, Excessive Heat, at close to 8,500 incidences, though the number of fatalities still remains a fair amount higher than that of other storms. 
 
@@ -149,7 +149,8 @@ economy_plot <- ggplot(data = economy_df,
                            fill = economy_damage)) +
     geom_col() +
     labs(x = "Storm Event Type", y = "Cost of Damage (in billions of dollars)",
-         title = "Most Severe Storm Impacts on the Economy in the U.S.") +
+         title = "Most Severe Storm Impacts on the Economy in the U.S.",
+         caption = "Figure 2: Top 20 storms impacting the U.S. economy, through property and crop damage costs.") +
     theme(axis.title = element_text(face = "bold"),
           axis.text.x = element_text(angle = 90, vjust=0.5, hjust=1, size=9),
           axis.text = element_text(colour = "black"),
@@ -164,7 +165,6 @@ economy_plot <- ggplot(data = economy_df,
 print(economy_plot)
 ```
 
-**Figure 2: Barplot of the top twenty storms impacting the U.S. economy, through property and crop damage costs.**
 
 According to the plot, Floods are exceedingly the greatest storm inflicting economic consequences across the United States, causing over \$150 billion in damages to property and crops, with most of those damages being to property. The second leading storm type is Hurricanes/Typhoons at about half of the former, resulting in about $72 billion in damages, again, mostly to property.
 
